@@ -315,3 +315,4 @@ input/
 # 3. Mac OS Folder Attributes 
 # (Only necessary if you or a professor uses a Mac, but good practice)
 .DS_Store
+/backend/output
