@@ -6,7 +6,7 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.exceptions import InvalidSignature
 import imagehash
 from PIL import Image
-from pypdf import PdfReader # Ensure pypdf is installed: pip install pypdf
+from pypdf import PdfReader 
 
 # --- KEY MANAGEMENT ---
 
@@ -33,13 +33,13 @@ def load_public_key(authority_name):
     with open(key_path, "rb") as key_file:
         return serialization.load_pem_public_key(key_file.read())
 
-# --- HASHING (UPDATED FOR SEMANTIC INTEGRITY) ---
+# --- HASHING (UPDATED FOR DEEP LOGICAL INTEGRITY) ---
 
 def generate_file_hash(file_path, is_image=False):
     """
     Generates a hash for the file content.
     - Images: Uses Perceptual Hash (pHash).
-    - PDFs: Uses Semantic Content Hash (Page Streams).
+    - PDFs: Uses Deep Logical Hash (Pages + Annots + Meta - Sig).
     - Other: Uses SHA-256 of raw bytes.
     """
     # 1. Image Logic (Perceptual)
@@ -50,32 +50,75 @@ def generate_file_hash(file_path, is_image=False):
         except Exception as e:
             raise ValueError(f"Failed to generate pHash: {e}")
 
-    # 2. PDF Logic (Semantic Content)
+    # 2. PDF Logic (Deep Logical Integrity)
     elif file_path.lower().endswith('.pdf'):
         try:
-            sha256 = hashlib.sha256()
-            reader = PdfReader(file_path)
-            
-            # We loop through every page and hash its raw content stream.
-            # This captures text, images, and layout, but IGNORES metadata.
-            for page in reader.pages:
-                content_obj = page.get_contents()
-                if content_obj:
-                    # Content can be a single object or a list of objects
-                    if isinstance(content_obj, list):
-                        for obj in content_obj:
-                            sha256.update(obj.get_data())
-                    else:
-                        sha256.update(content_obj.get_data())
-            
-            return sha256.hexdigest()
+            return _hash_pdf_logic(file_path)
         except Exception as e:
             # Fallback to standard hashing if PDF is encrypted or malformed
+            print(f"Warning: PDF Logic Hash failed ({e}), falling back to raw.")
             return _hash_raw_file(file_path)
 
     # 3. Standard File Logic (Text, etc.)
     else:
         return _hash_raw_file(file_path)
+
+def _hash_pdf_logic(file_path):
+    """
+    Hashes the logical content of a PDF to detect tampering (deletions, annotations, reordering),
+    while explicitly ignoring the '/OfficialSignature' metadata field.
+    """
+    sha256 = hashlib.sha256()
+    reader = PdfReader(file_path)
+    
+    # 1. Hash Metadata (Author, Title, etc.)
+    # We MUST sort keys to ensure consistency.
+    if reader.metadata:
+        sorted_keys = sorted(reader.metadata.keys())
+        for key in sorted_keys:
+            # CRITICAL: Ignore our signature field, but hash everything else
+            # This solves the "Observer Effect" where signing the file changes the hash.
+            if key == "/OfficialSignature":
+                continue
+            
+            value = reader.metadata[key]
+            # Update hash with Key + Value
+            sha256.update(str(key).encode('utf-8', errors='ignore'))
+            sha256.update(str(value).encode('utf-8', errors='ignore'))
+
+    # 2. Hash Page Count (Detects Deletion/Insertion)
+    # Adding the count ensures that removing a blank page changes the hash.
+    page_count = len(reader.pages)
+    sha256.update(f"COUNT:{page_count}".encode('utf-8'))
+
+    # 3. Hash Page Content & Annotations
+    for i, page in enumerate(reader.pages):
+        # A. Hash Page Index (Detects Reordering)
+        sha256.update(f"PAGE:{i}".encode('utf-8'))
+        
+        # B. Hash Content Stream (Text/Images)
+        content_obj = page.get_contents()
+        if content_obj:
+            if isinstance(content_obj, list):
+                for obj in content_obj:
+                    sha256.update(obj.get_data())
+            else:
+                sha256.update(content_obj.get_data())
+        
+        # C. Hash Annotations (Highlights, Comments, Signatures)
+        # This catches "Overlays" that don't change the main content stream.
+        if "/Annots" in page:
+            annots = page["/Annots"]
+            if annots:
+                try:
+                    for annot in annots:
+                        # Hash the annotation object representation
+                        annot_obj = annot.get_object()
+                        sha256.update(str(annot_obj).encode('utf-8', errors='ignore'))
+                except Exception:
+                    pass # Skip if complex annotation fails
+
+    return sha256.hexdigest()
 
 def _hash_raw_file(file_path):
     """Standard SHA-256 file hashing helper."""
