@@ -5,15 +5,12 @@ import mimetypes
 from datetime import datetime
 import time
 
-
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich import print as rprint
 
-
 from modules import crypto
-
 
 try:
     from modules import stega_image
@@ -30,7 +27,6 @@ try:
 except ImportError:
     stega_text = None
 
-
 console = Console()
 
 def process_signing(file_path, authority_name, message):
@@ -43,10 +39,9 @@ def process_signing(file_path, authority_name, message):
         border_style="blue"
     ))
 
-   
+    
     mime_type, _ = mimetypes.guess_type(file_path)
     if not mime_type:
-        # Fallback manual detection
         if file_path.lower().endswith('.txt'): mime_type = 'text/plain'
         else:
             console.print("[bold red]Error:[/bold red] Could not detect file type.")
@@ -54,7 +49,40 @@ def process_signing(file_path, authority_name, message):
 
     console.print(f"[italic]Detected MIME Type:[/italic] [bold]{mime_type}[/bold]")
 
- 
+   
+    output_dir = "output"
+    os.makedirs(output_dir, exist_ok=True)
+    
+    file_name = os.path.basename(file_path)
+    base_name, ext = os.path.splitext(file_name)
+    
+    if mime_type.startswith('image'):
+        output_filename = f"signed_{base_name}.png" 
+    else:
+        output_filename = f"signed_{file_name}"
+        
+    final_output_path = os.path.join(output_dir, output_filename)
+
+    
+    
+    file_to_hash = file_path 
+    temp_stamped_path = None
+
+    if mime_type == 'application/pdf':
+        if stega_pdf:
+            console.print("[cyan]Applying Visual Watermark...[/cyan]")
+            temp_stamped_path = os.path.join(output_dir, f"temp_{file_name}")
+            
+          
+            success = stega_pdf.stamp_pdf(file_path, temp_stamped_path, authority_name)
+            if success:
+                
+                file_to_hash = temp_stamped_path
+            else:
+                return 
+        else:
+             console.print("[bold red]Error:[/bold red] PDF module missing, cannot apply watermark.")
+
     payload_data = ""
     signature = ""
     
@@ -64,32 +92,28 @@ def process_signing(file_path, authority_name, message):
         transient=True
     ) as progress:
         
-        
         task1 = progress.add_task("[cyan]Loading Authority Keys...", total=None)
         try:
             private_key = crypto.load_private_key(authority_name)
-            time.sleep(0.5) # Artificial delay for dramatic effect during demo
+            time.sleep(0.5) 
             progress.update(task1, completed=100)
         except Exception as e:
             console.print(f"[bold red]Key Error:[/bold red] {e}")
             return
 
-    
         task2 = progress.add_task("[cyan]Calculating Hash & Generating Signature...", total=None)
         
-
         is_image = mime_type.startswith('image')
-        file_hash = crypto.generate_file_hash(file_path, is_image=is_image)
         
-   
+        
+        file_hash = crypto.generate_file_hash(file_to_hash, is_image=is_image)
+        
         timestamp = datetime.now().isoformat()
         payload_data = f"{file_hash}|{timestamp}|{authority_name}|{message}"
         
-
         signature = crypto.sign_payload(private_key, payload_data)
         time.sleep(0.5) 
         progress.update(task2, completed=100)
-
 
     console.print(Panel(
         f"[green]Payload:[/green] {payload_data}\n"
@@ -99,43 +123,35 @@ def process_signing(file_path, authority_name, message):
     ))
 
     
-    output_dir = "output"
-    os.makedirs(output_dir, exist_ok=True)
-    
-    
     final_stega_payload = f"{payload_data}||SIG||{signature}"
 
     if is_image:
         if stega_image:
             console.print("[bold yellow]Routing to Image Steganography Module (DWT)...[/bold yellow]")
-            output_filename = f"signed_{os.path.splitext(os.path.basename(file_path))[0]}.png"
-            output_path = os.path.join(output_dir, output_filename)
-            
-           
-            stega_image.embed(file_path, final_stega_payload, output_path)
-            console.print(f"[bold green]SUCCESS![/bold green] Signed Image saved to: [underline]{output_path}[/underline]")
+            stega_image.embed(file_path, final_stega_payload, final_output_path)
+            console.print(f"[bold green]SUCCESS![/bold green] Signed Image saved to: [underline]{final_output_path}[/underline]")
         else:
             console.print("[bold red]Error:[/bold red] 'stega_image.py' module is missing!")
 
     elif mime_type == 'application/pdf':
         if stega_pdf:
             console.print("[bold yellow]Routing to PDF Steganography Module (Metadata)...[/bold yellow]")
-            output_filename = f"signed_{os.path.basename(file_path)}"
-            output_path = os.path.join(output_dir, output_filename)
             
-            stega_pdf.embed(file_path, final_stega_payload, output_path)
-            console.print(f"[bold green]SUCCESS![/bold green] Signed PDF saved to: [underline]{output_path}[/underline]")
+            stega_pdf.embed(temp_stamped_path, final_stega_payload, final_output_path)
+            
+            
+            if os.path.exists(temp_stamped_path):
+                os.remove(temp_stamped_path)
+                
+            console.print(f"[bold green]SUCCESS![/bold green] Signed PDF saved to: [underline]{final_output_path}[/underline]")
         else:
             console.print("[bold red]Error:[/bold red] 'stega_pdf.py' module is missing!")
 
     elif mime_type == 'text/plain':
         if stega_text:
             console.print("[bold yellow]Routing to Text Steganography Module (Append)...[/bold yellow]")
-            output_filename = f"signed_{os.path.basename(file_path)}"
-            output_path = os.path.join(output_dir, output_filename)
-            
-            stega_text.embed(file_path, final_stega_payload, output_path)
-            console.print(f"[bold green]SUCCESS![/bold green] Signed Text saved to: [underline]{output_path}[/underline]")
+            stega_text.embed(file_path, final_stega_payload, final_output_path)
+            console.print(f"[bold green]SUCCESS![/bold green] Signed Text saved to: [underline]{final_output_path}[/underline]")
         else:
              console.print("[bold red]Error:[/bold red] 'stega_text.py' module is missing!")
 
