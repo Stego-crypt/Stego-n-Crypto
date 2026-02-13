@@ -51,7 +51,6 @@ def embed(image_path, payload_string, output_path):
         encoded_payload = rsc.encode(payload_bytes)
         
         # 2. CREATE PACKET: [LENGTH_HEADER (4 bytes)] + [ENCODED_PAYLOAD]
-        # We need to store the length of the ENCODED data so extractor knows how much to read.
         total_len = len(encoded_payload)
         header_bits = int_to_bin_32(total_len)
         payload_bits = bytes_to_bits(encoded_payload)
@@ -59,8 +58,20 @@ def embed(image_path, payload_string, output_path):
         full_bits = header_bits + payload_bits
         data_len = len(full_bits)
 
-        # 3. LOAD IMAGE (Blue Channel)
-        original_img = Image.open(image_path).convert('YCbCr')
+        # 3. LOAD IMAGE & FIX DIMENSIONS
+        original_img = Image.open(image_path)
+        
+        # --- FIX: FORCE EVEN DIMENSIONS ---
+        # DWT fails if dimensions are odd numbers. We resize to the nearest even number.
+        width, height = original_img.size
+        if width % 2 != 0 or height % 2 != 0:
+            new_width = width - (width % 2)
+            new_height = height - (height % 2)
+            original_img = original_img.resize((new_width, new_height), Image.LANCZOS)
+            # console.print(f"   [Auto-Fix] Resized image to {new_width}x{new_height} (Even dimensions required)")
+        # ----------------------------------
+
+        original_img = original_img.convert('YCbCr')
         y, cb, cr = original_img.split()
         cb_array = np.array(cb, dtype=float)
 
@@ -102,7 +113,16 @@ def embed(image_path, payload_string, output_path):
         LH = LH_flat.reshape(LH.shape)
         HL = HL_flat.reshape(HL.shape)
         new_coeffs = (LL, (LH, HL, HH))
+        
+        # IDWT Reconstruct
         new_cb_array = pywt.idwt2(new_coeffs, 'haar')
+        
+        # --- FIX: CROP RECONSTRUCTION ---
+        # IDWT might output a slightly larger array (e.g. 502px) than the original (500px)
+        # We crop it to match the exact shape of the original Cb channel.
+        if new_cb_array.shape != cb_array.shape:
+             new_cb_array = new_cb_array[:cb_array.shape[0], :cb_array.shape[1]]
+        # --------------------------------
         
         new_cb_array = np.clip(new_cb_array, 0, 255)
         new_cb = Image.fromarray(np.uint8(new_cb_array), mode='L')
@@ -136,8 +156,6 @@ def extract(image_path):
 
         # We need to read enough bits to at least get the Header (32 bits)
         # We read a large buffer first, then parse.
-        # Reading 15,000 coefficients gives us ~1.8KB of data capacity.
-        # This is enough for the text payload.
         BUFFER_SIZE = 15000 
         
         for val in LH_flat: 
@@ -153,7 +171,6 @@ def extract(image_path):
         
         # Sanity Check: If length is 0 or astronomically huge, extraction failed (noise)
         if payload_length_bytes == 0 or payload_length_bytes > 5000:
-            # console.print("[RS] Invalid Header Length detected.") 
             return None
         
         payload_length_bits = payload_length_bytes * 8
@@ -164,7 +181,6 @@ def extract(image_path):
         end = 32 + payload_length_bits
         
         if end > len(full_bit_stream):
-            # Not enough bits extracted?
             return None
             
         payload_bits = full_bit_stream[start:end]
@@ -173,7 +189,6 @@ def extract(image_path):
         # 5. REED-SOLOMON DECODE
         try:
             # This is the magic step. 
-            # It takes the potentially corrupted 'raw_bytes' and fixes them.
             decoded_msg, decoded_msgecc, errata_pos = rsc.decode(raw_bytes)
             
             # If successful, we return the clean string
@@ -185,7 +200,6 @@ def extract(image_path):
             return clean_text
 
         except ReedSolomonError:
-            # Too many errors to fix
             return None
         except Exception:
             return None
