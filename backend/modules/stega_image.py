@@ -10,12 +10,12 @@ console = Console()
 # --- CONFIGURATION ---
 # 1. ECC Strength: 
 # 50 parity bytes allows us to correct up to 25 byte errors per block.
-ECC_BYTES = 50 
+ECC_BYTES = 100 
 
 # 2. Robustness (Q-Factor):
 # Q=40.0 is aggressive enough to survive WhatsApp compression
 # while RS takes care of the bit-flips.
-Q = 40.0 
+Q = 100.0 
 
 # Initialize Codec
 rsc = RSCodec(ECC_BYTES)
