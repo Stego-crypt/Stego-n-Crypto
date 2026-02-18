@@ -15,19 +15,39 @@ except ImportError:
 HAMMING_THRESHOLD = 10 
 
 def calculate_text_hash_without_sig(file_path):
-    HEADER = "\n\n-----BEGIN OFFICIAL SIGNATURE-----\n"
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        # 1. Open in strictly BINARY mode ("rb"). No encoding parameter allowed!
+        with open(file_path, "rb") as f:
             content = f.read()
-        if HEADER in content:
-            original_content = content.split(HEADER)[0]
-        else:
-            original_content = content
-        sha256 = hashlib.sha256()
-        sha256.update(original_content.encode('utf-8'))
-        return sha256.hexdigest()
-    except Exception:
-        return None
+            
+        # 2. Use a regex byte-string (b"...") to find the header.
+        # \r?\n perfectly handles both Windows (\r\n) and Linux (\n) line endings.
+        header_pattern = b"\r?\n\r?\n-----BEGIN OFFICIAL SIGNATURE-----\r?\n"
+        
+        # 3. Split the raw binary content
+        split_content = re.split(header_pattern, content)
+        
+        # 4. Take the exact bytes before the signature block
+        original_content = split_content[0]
+        
+        # --- NEWLINE AGNOSTIC HASHING ---
+        # 1. Raw Hash (Exactly as received over the network)
+        hash_raw = hashlib.sha256(original_content).hexdigest()
+        
+        # 2. Linux Hash (Force all formatting to \n)
+        content_linux = original_content.replace(b"\r\n", b"\n")
+        hash_linux = hashlib.sha256(content_linux).hexdigest()
+        
+        # 3. Windows Hash (Force all formatting to \r\n)
+        content_windows = content_linux.replace(b"\n", b"\r\n")
+        hash_windows = hashlib.sha256(content_windows).hexdigest()
+        
+        # Return a LIST of all possible valid hashes
+        return [hash_raw, hash_linux, hash_windows]
+        
+    except Exception as e:
+        print(f"Hash calculation error: {e}")
+        return []
 
 def analyze_file(file_path):
     """
@@ -129,8 +149,11 @@ def analyze_file(file_path):
             details_msg = "Hash Error"
 
     elif is_text:
-        current_hash_str = calculate_text_hash_without_sig(file_path)
-        if current_hash_str == original_hash_str:
+        # Now returns a list of 3 possible hashes
+        valid_hashes = calculate_text_hash_without_sig(file_path)
+        
+        # Check if the original signature matches ANY of our formatting hashes
+        if original_hash_str in valid_hashes:
             integrity_passed = True
             details_msg = "Exact Match"
         else:

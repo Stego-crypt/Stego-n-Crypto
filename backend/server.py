@@ -1,7 +1,6 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-import shutil
 import os
 import uuid
 import uvicorn
@@ -63,9 +62,13 @@ async def verify_document(file: UploadFile = File(...)):
     temp_path = os.path.join(UPLOAD_DIR, unique_filename)
 
     try:
-        # 2. Save the uploaded file stream to disk
+        # 2. THE BULLETPROOF ASYNC SAVE METHOD
+        # Await the raw bytes straight from the network memory
+        content = await file.read()
+        
+        # Save them strictly in binary mode to disk
         with open(temp_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+            buffer.write(content)
 
         # 3. CALL THE BRAIN (verifier_core.py)
         # This function does all the heavy lifting (Crypto, Hash, Stego)
