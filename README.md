@@ -71,7 +71,7 @@ private const val BASE_URL = "[https://your-custom-domain.ngrok-free.app/](https
 ### 3. Frontend Setup (Android App)
 
 1. Open Android Studio.
-2. Select **Open** and navigate to the `StegoCrypto` folder inside this repository.
+2. Select **Open** and navigate to the `frontend` folder inside this repository.
 3. Allow Gradle to sync and download the required Android dependencies.
 4. Go to **Build > Build Bundle(s) / APK(s) > Build APK(s)** to generate the executable.
 5. Transfer the resulting `.apk` to your physical Android device and install it.
