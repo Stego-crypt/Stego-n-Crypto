@@ -45,7 +45,7 @@ data class HealthResponse(val status: String, val system: String, val version: S
 
 // --- CLIENT BUILDER ---
 object RetrofitClient {
-    private const val BASE_URL = "https://madelaine-claval-uninstrumentally.ngrok-free.dev"
+    private const val BASE_URL = "https://your-custom-domain.ngrok-free.app"
 
     val instance: ApiService by lazy {
         Retrofit.Builder()
