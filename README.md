@@ -78,3 +78,10 @@ private const val BASE_URL = "[https://your-custom-domain.ngrok-free.app/](https
 
 *(Note: Pre-built APKs are available in the **Releases** section of this repository for quick testing).*
 
+### 🎛️ Usage & Demo Guide
+
+1. **Sign a Document (Authority Mode):** Use the Python backend scripts (e.g., `sign.py`) alongside your private RSA key to generate a signed version of an image, PDF, or text file. You can embed custom string payloads alongside the signature.
+
+2. **Launch the App:** Open the StegoCrypto app on your Android device. Ensure the backend server and Ngrok tunnel are running on your host machine.
+
+3. **Verify:** Tap the **"Select Document to Verify"** button and choose the signed file from your phone's storage.
