@@ -48,31 +48,3 @@ pip install -r requirements.txt
 # Start the FastAPI Server
 uvicorn server:app --host 0.0.0.0 --port 8000
 
-### 2. Network Tunneling (For Mobile Access)
-
-To allow the Android app to securely communicate with your local machine from any network, you need to set up a secure tunnel using Ngrok.
-
-1. Create a free Ngrok account, install the CLI, and authenticate it.
-2. Go to your Ngrok dashboard (Cloud Edge > Domains) and claim your free static domain.
-3. Open a new terminal and run the tunnel using your specific domain:
-
-```bash
-ngrok http --domain=your-custom-domain.ngrok-free.app 8000
-```
-
-**Update the Android Code:** Before building the app, navigate to `app/src/main/java/com/example/stegocrypto/RetrofitClient.kt` and update the `BASE_URL` variable to match your new Ngrok domain:
-
-```kotlin
-// Inside RetrofitClient.kt
-private const val BASE_URL = "[https://your-custom-domain.ngrok-free.app/](https://your-custom-domain.ngrok-free.app/)"
-```
-
-### 3. Frontend Setup (Android App)
-
-1. Open Android Studio.
-2. Select **Open** and navigate to the `StegoCrypto` folder inside this repository.
-3. Allow Gradle to sync and download the required Android dependencies.
-4. Go to **Build > Build Bundle(s) / APK(s) > Build APK(s)** to generate the executable.
-5. Transfer the resulting `.apk` to your physical Android device and install it.
-
-*(Note: Pre-built APKs are available in the **Releases** section of this repository for quick testing).*
