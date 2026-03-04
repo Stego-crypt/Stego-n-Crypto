@@ -1,44 +1,49 @@
-# 🛡️ Stego-n-Crypto: Digital Content Verification System
+# 🔐 StegoCrypto: Digital Content Verification System
 
 ![Android](https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)
-![Kotlin](https://img.shields.io/badge/Kotlin-0095D5?style=for-the-badge&logo=kotlin&logoColor=white)
+![Kotlin](https://img.shields.io/badge/Kotlin-0095D5?&style=for-the-badge&logo=kotlin&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)
 
-Stego-n-Crypto is a client-server cryptographic architecture designed to securely sign, embed, and verify the authenticity of digital media (Text, Images, and PDFs). By combining **RSA Digital Signatures** with **Steganography**, this system ensures that media not only proves its origins but also mathematically proves its content has not been tampered with.
+StegoCrypto is a full-stack, distributed application designed to mathematically verify the authenticity and integrity of digital media (Text, Images, and PDFs). 
 
-## ✨ Core Features
-* **Cryptographic Signatures:** Uses RSA key pairs to generate unforgeable digital signatures for media files.
-* **Invisible Payloads:** Embeds metadata and signatures directly into the file's data stream (LSB steganography for images, zero-width characters for text) without altering the visual appearance.
-* **Content Integrity Verification:** Utilizes SHA-256 and Perceptual Image Hashing (Hamming Distance) to detect even single-pixel alterations.
-* **Newline-Agnostic Hashing:** Bulletproof cross-platform transport logic that survives OS-level metadata mutations.
-* **Modern Mobile Client:** A sleek Android application built with Jetpack Compose, featuring an onboard SQLite scan history database and real-time Dark Mode support.
+By combining **RSA Public-Key Cryptography** with **Steganography**, this system allows authorities to embed invisible, tamper-proof cryptographic signatures directly inside files. The accompanying native Android application allows users to scan these files and instantly verify their origin and ensure they have not been altered by malicious actors.
+
+## ✨ Key Features
+* **Multi-Format Support:** Secures and verifies `.txt`, `.jpg`, `.png`, and `.pdf` files.
+* **Cryptographic Tamper Detection:** Utilizes SHA-256 hashing and Perceptual Image Hashing (Hamming Distance) to detect even a single byte or pixel of unauthorized modification.
+* **Newline-Agnostic Processing:** Robust backend architecture that survives cross-platform transport mutations (Windows CRLF vs. Linux LF) without throwing false-positive tamper alerts.
+* **Modern Android UI:** Built entirely in Jetpack Compose, featuring an adaptive Material Design 3 interface with full System Dark Mode support.
+* **High-Concurrency Backend:** Powered by Python's FastAPI, capable of handling simultaneous verification requests from multiple mobile clients over secure cloud tunnels.
+
+## 🏗️ Architecture Stack
+| Component | Technology | Description |
+| :--- | :--- | :--- |
+| **Frontend** | Kotlin, Jetpack Compose | Native Android Application |
+| **Backend API** | Python, FastAPI | High-performance async REST API |
+| **Cryptography** | `cryptography`, `hashlib` | RSA Signatures and SHA-256 Hashing |
+| **Steganography** | `stegano`, `PyPDF2` | Invisible payload embedding |
+| **Network** | Retrofit, Ngrok | Secure HTTP tunneling and API consumption |
+| **Database** | Room (SQLite) | Local device scanning history |
 
 ---
 
-## 🏗️ System Architecture
+## 🚀 Installation & Setup
 
-1. **Frontend (Android Client):** Built entirely in Kotlin using Jetpack Compose. Handles file selection, UI rendering, history tracking (Room DB), and REST API communication via Retrofit.
-2. **Backend (FastAPI Engine):** A high-performance Python server that receives media, extracts steganographic payloads, calculates cryptographic hashes, and verifies RSA signatures.
-3. **Transport Layer:** Configured to utilize Ngrok secure tunneling, allowing real-time global mobile access to the local backend during demonstrations.
+### 1. Backend Setup (Local Server)
+Ensure you have Python 3.9+ installed on your machine.
 
----
-
-## 🚀 Quick Start / Demo Setup
-
-### Prerequisites
-* Python 3.10+
-* Android Studio (Ladybug or newer)
-* Ngrok Account & CLI
-
-### 1. Backend Setup
-Clone the repository and spin up the Python environment:
 ```bash
+# Clone the repository
 git clone [https://github.com/Stego-crypt/Stego-n-Crypto.git](https://github.com/Stego-crypt/Stego-n-Crypto.git)
 cd Stego-n-Crypto/backend
 
-# Install required cryptography and web libraries
+# Create and activate a virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows use: venv\Scripts\activate
+
+# Install the required dependencies
 pip install -r requirements.txt
 
-# Start the FastAPI verification server
-python server.py
+# Start the FastAPI Server
+uvicorn server:app --host 0.0.0.0 --port 8000
